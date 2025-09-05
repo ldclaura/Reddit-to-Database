@@ -21,7 +21,12 @@ class Reddit_Scrape:
         if data["data"]["children"][post]["data"]["selftext"] == "":
             pass
         else:
-            # print(data["data"]["children"][x]["data"]["selftext"])
+            print(f'ID: {data["data"]["children"][post]["data"]["id"]}')
+            print(f'TITLE: {data["data"]["children"][post]["data"]["title"]}')
+            print(f'AUTHOR: {data["data"]["children"][post]["data"]["author"]}')
+            print(f'SCORE: {data["data"]["children"][post]["data"]["score"]}')
+            print(f'URL: {data["data"]["children"][post]["data"]["url"]}')
+            print(f'CREATED_UTC: {data["data"]["children"][post]["data"]["created_utc"]}')
             # print(data["data"]["children"][x]["data"]["url"])
             diction = {post:
                         {
@@ -37,7 +42,13 @@ class Reddit_Scrape:
         all_comments = {}
         try:
             data = requests.get(url=self.comments_url, headers=self.headers).json()
-            for _ in range(len(data[1]['data']['children'])): #3 comments
+            for _ in range(len(data[1]['data']['children'])):
+                print(f'ID: {data[1]["data"]["children"][_]["data"]["id"]}')
+                # print(f'POST ID: {data[1]["data"]["children"][_]["data"]["post_id"]}')
+                print(f'author: {data[1]["data"]["children"][_]["data"]["author"]}') #3 comments
+                print(f'body: {data[1]["data"]["children"][_]["data"]["body"]}')
+                print(f'score: {data[1]["data"]["children"][_]["data"]["score"]}')
+                print(f'created_utc: {data[1]["data"]["children"][_]["data"]["created_utc"]}')
                 all_comments.update({_ : data[1]['data']['children'][_]['data']['body']})
                 #return something
         except:

@@ -1,8 +1,8 @@
 from redditscrape import Reddit_Scrape
-from gemini import AIGen
+# from gemini import AIGen
 scrape = Reddit_Scrape()
 print(scrape)
-post = scrape.top_post(1)
+post = scrape.top_post(2)
 print(post)
 print("-----post-----")
 for num in list(post.keys()):
