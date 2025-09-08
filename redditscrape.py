@@ -21,12 +21,6 @@ class Reddit_Scrape:
         if data["data"]["children"][post]["data"]["selftext"] == "":
             pass
         else:
-            print(f'ID: {data["data"]["children"][post]["data"]["id"]}')
-            print(f'TITLE: {data["data"]["children"][post]["data"]["title"]}')
-            print(f'AUTHOR: {data["data"]["children"][post]["data"]["author"]}')
-            print(f'SCORE: {data["data"]["children"][post]["data"]["score"]}')
-            print(f'URL: {data["data"]["children"][post]["data"]["url"]}')
-            print(f'CREATED_UTC: {data["data"]["children"][post]["data"]["created_utc"]}')
             # print(data["data"]["children"][x]["data"]["url"])
             diction = {post:
                        {"ID":data["data"]["children"][post]["data"]["id"],
@@ -39,58 +33,49 @@ class Reddit_Scrape:
             self.post_id = data["data"]["children"][post]["data"]["id"]
             self.comments_url = f'https://www.reddit.com{data["data"]["children"][post]["data"]["permalink"]}.json' # print(list(post[1].keys())[0]) #dict_keys(['key string']) to just 'key string'
             return diction
-    def comments(self):
-        """ah"""
+
+
+    def extract_comment_data(self, comment):
+        """Extracts data for one comment, recursively processing replies."""
+        comment_data = {
+            "id": comment["data"]["id"],
+            "author": comment["data"].get("author"),
+            "body": comment["data"].get("body"),
+            "score": comment["data"].get("score"),
+            "created_utc": comment["data"].get("created_utc"),
+            "replies": []
+        }
+
+        # check for replies (can be "" if no replies)
+        replies = comment["data"].get("replies")
+        if replies and isinstance(replies, dict):
+            for reply in replies["data"]["children"]:
+                if reply["kind"] == "t1":  # t1 = comment, t3 = post
+                    comment_data["replies"].append(self.extract_comment_data(reply))
+
+        return comment_data
+
+
+    def get_all_comments(self):
+        """Fetch all comments and nested replies for current post."""
         all_comments = []
         try:
             data = requests.get(url=self.comments_url, headers=self.headers).json()
-            for _ in range(len(data[1]['data']['children'])):
-                all_comments.append({
-                    _ :
-                    {"ID":data[1]["data"]["children"][_]["data"]["id"],
-                     "author":data[1]["data"]["children"][_]["data"]["author"],
-                     "body":data[1]["data"]["children"][_]["data"]["body"],
-                     "score":data[1]["data"]["children"][_]["data"]["score"],
-                     "created_utc":data[1]["data"]["children"][_]["data"]["created_utc"]
-                     }
-                })
-                #return something
-        except:
-            pass
-        return all_comments
-    def replies(self, comment):
-        """ah"""
-        all_replies = []
-        # {comment:
-        # {reply: id, author, body, score, created_utc}}
-        try:
+            for child in data[1]["data"]["children"]:
+                if child["kind"] == "t1":  # ensure it's a comment
+                    all_comments.append(self.extract_comment_data(child))
+        except Exception as e:
+            print("Error fetching comments:", e)
 
-            data = requests.get(url=self.comments_url, headers=self.headers).json()
-            for _ in range(len(data[1]['data']['children'][comment]['data']['replies']['data']['children'])):
-                print(comment)
-                all_replies.append({
-                    _ :
-                    {"ID":data[1]['data']['children'][comment]['data']['replies']['data']['children'][_]['data']['id'],
-                     "author":data[1]['data']['children'][comment]['data']['replies']['data']['children'][_]['data']['author'],
-                     "body":data[1]['data']['children'][comment]['data']['replies']['data']['children'][_]['data']['body'],
-                     "score":data[1]['data']['children'][comment]['data']['replies']['data']['children'][_]['data']['score'],
-                     "created_utc":data[1]['data']['children'][comment]['data']['replies']['data']['children'][_]['data']['created_utc']
-                     }
-                })
-            # for x in range(len(data[1]['data']['children'][comment]['data']['replies']['data']['children'])):#[0]['data']['body']
-            #     all_replies.append(data[1]['data']['children'][comment]['data']['replies']['data']['children'][x]['data']['body'])
-            #     try:
-            #         for y in range(len(data[1]['data']['children'][comment]['data']['replies']['data']['children'][x]['data']['replies']['data']['children'])):
-            #             all_replies.append(data[1]['data']['children'][comment]['data']['replies']['data']['children'][x]['data']['replies']['data']['children'][y]['data']['body'])
-            #     except:
-            #         pass
-        except:
-            pass
-        return all_replies
+        return all_comments
 d = Reddit_Scrape()
 d.top_post(5)
-print(d.comments())
-for x in range(len(d.comments())):
-    print(x)
-    print(d.replies(x))
-print(d.comments_url)
+comments_tree = d.get_all_comments()
+print(comments_tree)
+
+
+# print(d.comments())
+# for x in range(len(d.comments())):
+
+#     print(d.replies(x))
+# print(d.comments_url)
