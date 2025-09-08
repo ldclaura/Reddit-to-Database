@@ -1,15 +1,15 @@
 import sqlite3
 from redditscrape import Reddit_Scrape
 d = Reddit_Scrape()
-d.top_post(5)
-print(d.top_post(5))
+post = d.top_post(25)
+print(post)
 comments_tree = d.get_all_comments()
 print("COMMENTS TREE")
 print(comments_tree)
 print("COMMENTS TREE 2")
 print(comments_tree[0])
 print("COMMENTS TREE 3")
-print(comments_tree[1])
+# print(comments_tree[1])
 
 #comments
 for item in range(len(comments_tree)):
@@ -24,37 +24,85 @@ db = sqlite3.connect("data.db")
 
 cursor = db.cursor()
 
-# cursor.execute("""CREATE TABLE Posts (id TEXT PRIMARY KEY,
-#                 title TEXT,
-#                 author TEXT,
-#                 score INTEGER,
-#                 url TEXT,
-#                 created_utc INTEGER)""")
-# cursor.execute("""CREATE TABLE Comments (id TEXT PRIMARY KEY,
-#                post_id TEXT,
-#                author TEXT,
-#                body TEXT,
-#                score INTEGER,
-#                created_utc INTEGER,
-#                FOREIGN KEY(post_id) REFERENCES Posts(id))""")
-# cursor.execute("""CREATE TABLE Replies (id TEXT PRIMARY KEY,
-#                comment_id TEXT,
-#                author TEXT,
-#                body TEXT,
-#                score INTEGER,
-#                created_utc INTEGER,
-#                FOREIGN KEY(comment_id) REFERENCES Comments(id))""")
+cursor.execute("""CREATE TABLE Posts (id TEXT PRIMARY KEY,
+                title TEXT,
+                author TEXT,
+                score INTEGER,
+                url TEXT,
+                created_utc INTEGER)""")
+cursor.execute("""CREATE TABLE Comments (id TEXT PRIMARY KEY,
+               post_id TEXT,
+               author TEXT,
+               body TEXT,
+               score INTEGER,
+               created_utc INTEGER,
+               FOREIGN KEY(post_id) REFERENCES Posts(id))""")
+cursor.execute("""CREATE TABLE Replies (id TEXT PRIMARY KEY,
+               comment_id TEXT,
+               author TEXT,
+               body TEXT,
+               score INTEGER,
+               created_utc INTEGER,
+               FOREIGN KEY(comment_id) REFERENCES Comments(id))""")
+def myprint(d):
+    replies = {}
+    print("DICK")
+    print(d)
+    for k, v in d.items():
+        if isinstance(v, dict):
+            myprint(v) #FIX THIS
+        else:
+            replies[k] = v
+            # print("{0} : {1}".format(k, v))
+    return replies
 
-for item in range(len(d.top_post(5))):
-    cursor.execute(f"""INSERT INTO Posts (id, title, author, score, url, created_utc)
-                    VALUES(?, ?, ?, ?, ?, ?)""",
-    (d.top_post(5)[5]["ID"],
-    d.top_post(5)[5]["TITLE"],
-    d.top_post(5)[5]["AUTHOR"],
-    d.top_post(5)[5]["SCORE"],
-    d.top_post(5)[5]["URL"],
-    d.top_post(5)[5]["CREATED_UTC"])) #make sure this is tuple, only takes 2 arguments
-    
+the_post = False
+try:
+    for item in post:
+        print(item)
+        cursor.execute(f"""INSERT INTO Posts (id, title, author, score, url, created_utc)
+                        VALUES(?, ?, ?, ?, ?, ?)""",
+        (post[item]["ID"],
+        post[item]["TITLE"],
+        post[item]["AUTHOR"],
+        post[item]["SCORE"],
+        post[item]["URL"],
+        post[item]["CREATED_UTC"])) #make sure this is tuple, only takes 2 arguments
+        the_post = post[item]["ID"]
+except sqlite3.IntegrityError:
+    pass
+try:
+    for item in range(len(comments_tree)):
+
+        cursor.execute(f"""INSERT INTO Comments (id, post_id, author, body, score, created_utc)
+                        VALUES(?, ?, ?, ?, ?, ?)""",
+        (comments_tree[item]["id"],
+        the_post,
+        comments_tree[item]["author"],
+        comments_tree[item]["body"],
+        comments_tree[item]["score"],
+        comments_tree[item]["created_utc"])) #make sure this is tuple, only takes 2 arguments\
+        print("hi")
+        print(comments_tree[item]["replies"])
+        for item2 in comments_tree[item]["replies"]:
+            print("ITEM2")
+            print(item2)
+            print("replies")
+            print(myprint(item2))
+
+
+
+            cursor.execute(f"""INSERT INTO Replies (id, comment_id, author, body, score, created_utc)
+                            VALUES(?, ?, ?, ?, ?, ?)""",
+            (myprint(item2)["id"],
+            comments_tree[item]["id"],
+            myprint(item2)["author"],
+            myprint(item2)["body"],
+            myprint(item2)["score"],
+            myprint(item2)["created_utc"])) #make sure this is tuple, only takes 2 arguments
+
+except sqlite3.IntegrityError:
+    pass
     # print(f"COMMENT {item}")
     # print(comments_tree[item])
     # print(comments_tree[item]["author"])

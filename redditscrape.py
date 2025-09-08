@@ -68,10 +68,7 @@ class Reddit_Scrape:
             print("Error fetching comments:", e)
 
         return all_comments
-d = Reddit_Scrape()
-d.top_post(5)
-comments_tree = d.get_all_comments()
-print(comments_tree)
+
 
 
 # print(d.comments())
