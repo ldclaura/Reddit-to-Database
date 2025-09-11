@@ -1,7 +1,7 @@
 import sqlite3
 from redditscrape import Reddit_Scrape
 d = Reddit_Scrape()
-post = d.top_post(25)
+post = d.top_post(5)
 print(post)
 comments_tree = d.get_all_comments()
 print("COMMENTS TREE")
@@ -82,24 +82,37 @@ try:
         comments_tree[item]["body"],
         comments_tree[item]["score"],
         comments_tree[item]["created_utc"])) #make sure this is tuple, only takes 2 arguments\
-        print("hi")
-        print(comments_tree[item]["replies"])
-        for item2 in comments_tree[item]["replies"]:
-            print("ITEM2")
-            print(item2)
-            print("replies")
-            print(myprint(item2))
+        print(")_10102102103341234134234324")
+        bitch = [item for item in comments_tree[item]["replies"]]
+        print(bitch)
+        try:
+            if bitch[0]["replies"] != []:
+                bitch = bitch[0]["replies"]
+                print("fuck")
+                print(bitch)
+        except:
+            pass
+        # replies = comments_tree[item].get("replies")
+        # if replies and isinstance(replies, list):
+        #     for reply in replies:
+        #         print("ggg")
+        #         print(reply)
+        #         if reply and isinstance(reply, list):
+        #             for reply2 in reply:
+        #                 print("ggg2")
+        #                 print
 
 
 
-            cursor.execute(f"""INSERT INTO Replies (id, comment_id, author, body, score, created_utc)
-                            VALUES(?, ?, ?, ?, ?, ?)""",
-            (myprint(item2)["id"],
-            comments_tree[item]["id"],
-            myprint(item2)["author"],
-            myprint(item2)["body"],
-            myprint(item2)["score"],
-            myprint(item2)["created_utc"])) #make sure this is tuple, only takes 2 arguments
+
+            # cursor.execute(f"""INSERT INTO Replies (id, comment_id, author, body, score, created_utc)
+            #                 VALUES(?, ?, ?, ?, ?, ?)""",
+            # (myprint(item2)["id"],
+            # comments_tree[item]["id"],
+            # myprint(item2)["author"],
+            # myprint(item2)["body"],
+            # myprint(item2)["score"],
+            # myprint(item2)["created_utc"])) #make sure this is tuple, only takes 2 arguments
 
 except sqlite3.IntegrityError:
     pass
