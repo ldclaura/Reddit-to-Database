@@ -1,167 +1,111 @@
 import sqlite3
 from redditscrape import Reddit_Scrape
+
 d = Reddit_Scrape()
-post = d.top_post(5)
-print(post)
+post = d.top_post(3)
 comments_tree = d.get_all_comments()
-print("COMMENTS TREE")
-print(comments_tree)
-print("COMMENTS TREE 2")
-print(comments_tree[0])
-print("COMMENTS TREE 3")
-# print(comments_tree[1])
 
-#comments
-for item in range(len(comments_tree)):
-    print(f"COMMENT {item}")
-    print(comments_tree[item])
-    print(comments_tree[item]["author"])
-    for item2 in range(len(comments_tree[item]["replies"])):
-        print("REPLIES")
-        print(comments_tree[item]["replies"])
+def extract_comments(comments, parent_id=None, collected=None):
+    """
+    Flatten comments tree into a list of dicts.
+    parent_id = parent comment ID (None if top-level)
+    """
+    if collected is None:
+        collected = []
 
+    for comment in comments:
+        collected.append({
+            "id": comment["id"],
+            "parent_id": parent_id,  # store parent ID (comment or post)
+            "author": comment["author"],
+            "body": comment["body"],
+            "score": comment["score"],
+            "created_utc": comment["created_utc"]
+        })
+
+        if "replies" in comment and comment["replies"]:
+            extract_comments(comment["replies"], parent_id=comment["id"], collected=collected)
+
+    return collected
+
+
+# ---------------- DB Setup ----------------
 db = sqlite3.connect("data.db")
-
 cursor = db.cursor()
 
-cursor.execute("""CREATE TABLE Posts (id TEXT PRIMARY KEY,
-                title TEXT,
-                author TEXT,
-                score INTEGER,
-                url TEXT,
-                created_utc INTEGER)""")
-cursor.execute("""CREATE TABLE Comments (id TEXT PRIMARY KEY,
-               post_id TEXT,
-               author TEXT,
-               body TEXT,
-               score INTEGER,
-               created_utc INTEGER,
-               FOREIGN KEY(post_id) REFERENCES Posts(id))""")
-cursor.execute("""CREATE TABLE Replies (id TEXT PRIMARY KEY,
-               comment_id TEXT,
-               author TEXT,
-               body TEXT,
-               score INTEGER,
-               created_utc INTEGER,
-               FOREIGN KEY(comment_id) REFERENCES Comments(id))""")
-def myprint(d):
-    replies = {}
-    print("DICK")
-    print(d)
-    for k, v in d.items():
-        if isinstance(v, dict):
-            myprint(v) #FIX THIS
-        else:
-            replies[k] = v
-            # print("{0} : {1}".format(k, v))
-    return replies
+cursor.execute("""CREATE TABLE IF NOT EXISTS Posts (
+    id TEXT PRIMARY KEY,
+    title TEXT,
+    author TEXT,
+    score INTEGER,
+    url TEXT,
+    created_utc INTEGER
+)""")
 
+cursor.execute("""CREATE TABLE IF NOT EXISTS Comments (
+    id TEXT PRIMARY KEY,
+    post_id TEXT,
+    author TEXT,
+    body TEXT,
+    score INTEGER,
+    created_utc INTEGER,
+    FOREIGN KEY(post_id) REFERENCES Posts(id)
+)""")
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS Replies (
+    id TEXT PRIMARY KEY,
+    comment_id TEXT,
+    author TEXT,
+    body TEXT,
+    score INTEGER,
+    created_utc INTEGER,
+    FOREIGN KEY(comment_id) REFERENCES Comments(id)
+)""")
+
+
+# ---------------- Insert Post ----------------
 the_post = False
 try:
     for item in post:
-        print(item)
-        cursor.execute(f"""INSERT INTO Posts (id, title, author, score, url, created_utc)
-                        VALUES(?, ?, ?, ?, ?, ?)""",
-        (post[item]["ID"],
-        post[item]["TITLE"],
-        post[item]["AUTHOR"],
-        post[item]["SCORE"],
-        post[item]["URL"],
-        post[item]["CREATED_UTC"])) #make sure this is tuple, only takes 2 arguments
+        cursor.execute("""INSERT OR IGNORE INTO Posts (id, title, author, score, url, created_utc)
+                          VALUES (?, ?, ?, ?, ?, ?)""",
+            (post[item]["ID"],
+             post[item]["TITLE"],
+             post[item]["AUTHOR"],
+             post[item]["SCORE"],
+             post[item]["URL"],
+             post[item]["CREATED_UTC"]))
         the_post = post[item]["ID"]
 except sqlite3.IntegrityError:
     pass
+
+
+# ---------------- Insert Comments ----------------
 try:
-    for item in range(len(comments_tree)):
+    for item in comments_tree:
+        cursor.execute("""INSERT OR IGNORE INTO Comments (id, post_id, author, body, score, created_utc)
+                          VALUES (?, ?, ?, ?, ?, ?)""",
+            (item["id"],
+             the_post,
+             item["author"],
+             item["body"],
+             item["score"],
+             item["created_utc"]))
 
-        cursor.execute(f"""INSERT INTO Comments (id, post_id, author, body, score, created_utc)
-                        VALUES(?, ?, ?, ?, ?, ?)""",
-        (comments_tree[item]["id"],
-        the_post,
-        comments_tree[item]["author"],
-        comments_tree[item]["body"],
-        comments_tree[item]["score"],
-        comments_tree[item]["created_utc"])) #make sure this is tuple, only takes 2 arguments\
-        print(")_10102102103341234134234324")
-        bitch = [item for item in comments_tree[item]["replies"]]
-        print(bitch)
-        try:
-            if bitch[0]["replies"] != []:
-                bitch = bitch[0]["replies"]
-                print("fuck")
-                print(bitch)
-        except:
-            pass
-        # replies = comments_tree[item].get("replies")
-        # if replies and isinstance(replies, list):
-        #     for reply in replies:
-        #         print("ggg")
-        #         print(reply)
-        #         if reply and isinstance(reply, list):
-        #             for reply2 in reply:
-        #                 print("ggg2")
-        #                 print
+        # extract all replies to this comment (and nested ones)
+        all_replies = extract_comments(item["replies"], parent_id=item["id"])
 
-
-
-
-            # cursor.execute(f"""INSERT INTO Replies (id, comment_id, author, body, score, created_utc)
-            #                 VALUES(?, ?, ?, ?, ?, ?)""",
-            # (myprint(item2)["id"],
-            # comments_tree[item]["id"],
-            # myprint(item2)["author"],
-            # myprint(item2)["body"],
-            # myprint(item2)["score"],
-            # myprint(item2)["created_utc"])) #make sure this is tuple, only takes 2 arguments
-
+        for r in all_replies:
+            cursor.execute("""INSERT OR IGNORE INTO Replies (id, comment_id, author, body, score, created_utc)
+                              VALUES (?, ?, ?, ?, ?, ?)""",
+                (r["id"],
+                 r["parent_id"],   # this links reply → parent comment
+                 r["author"],
+                 r["body"],
+                 r["score"],
+                 r["created_utc"]))
 except sqlite3.IntegrityError:
     pass
-    # print(f"COMMENT {item}")
-    # print(comments_tree[item])
-    # print(comments_tree[item]["author"])
-    # for item2 in range(len(comments_tree[item]["replies"])):
-    #     print("REPLIES")
-    #     print(comments_tree[item]["replies"])
 
-
-# cursor.execute("INSERT INTO Posts VALUES(1,
-#  '29',
-#  '6',
-#  '2025',
-#  '6',
-#  '7',
-#  '2025',
-#  null)")
-# cursor.execute("INSERT INTO Comments VALUES(1,
-#  '29',
-#  '6',
-#  '2025',
-#  '6',
-#  '7',
-#  '2025',
-#  null)")
-# cursor.execute("INSERT INTO Replies VALUES(1,
-#  '29',
-#  '6',
-#  '2025',
-#  '6',
-#  '7',
-#  '2025',
-#  null)")
-# cursor.execute("INSERT INTO period VALUES(2, '10', '8', '2025', '17', '8', '2025', null)")
-# #id | date_start | month_start | year_start | date_end | month_end | year_end | difference
-# #1  | 29         | 6           | 2025       | 6        | 7         | 2025     |
-# #2  | 10         | 8           | 2025       | 17        | 8        | 2025     |
-#     #29
-#     #10
-#     #first day of p, day before next p
-#     #42!!!
-# #how much of the calculation needs to be python and how much can be sql
-# #should i use the func that i already made?
-# cursor.execute(f'SELECT date_start + date_end AS difference FROM period;')
-# cursor.execute(f'UPDATE period SET difference = date_start + date_end; ')
-    # print(row)
 db.commit()
 db.close()
-
-#average = round(sum(length)/len(length))
